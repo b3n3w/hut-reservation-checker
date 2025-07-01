@@ -2,7 +2,7 @@
 
 This project checks availability for huts listed on [hut-reservation.org](https://www.hut-reservation.org) and sends Discord notifications when beds are available.
 
-It uses GitHub Actions to run on a schedule or manually with user-defined inputs like **hut IDs** and **date ranges**.
+It uses GitHub Actions to run on different schedules or manually with user-defined inputs like **hut IDs** and **date ranges**.
 
 #### Example Discord Output
 
@@ -14,35 +14,42 @@ It uses GitHub Actions to run on a schedule or manually with user-defined inputs
 
 - Supports multiple huts and dates
 - Dynamically fetches real bed categories from the API
-- Sends Discord notifications when >3 beds are free
+- Sends Discord notifications n beds are availble
+- Predefined schedules (hourly, 4-hours, daily)
 
 ---
 
 ## 🔧 Setup
 
-1. **Add your Discord Webhook URL**
+1. **Clone or Fork repository**
+
+2. **Add your Discord Webhook URL**
 
    Go to your repository → **Settings** → **Secrets and variables** → **Actions** → Add a new secret:
 
 Name: DISCORD_WEBHOOK_URL
 Value: https://discord.com/api/webhooks/...
 
-By default the worflow will run every hour to check the availablility.
+3. **Configure pipelines**
+
+   Go to your repository → **Actions** → **Select Schedule** → **Edit Actions File** Set Hut Id's, Date and required number of beds:
 
 
+```daily.yml
+env:  # Top-level defaults (used for cron runs)
+  DEFAULT_HUTS: '150'
+  DEFAULT_FREE_BEDS: '3'
+  DEFAULT_DATES: '[{"arrivalDate":"11.07.2025","departureDate":"12.07.2025"}, {"arrivalDate":"12.07.2025","departureDate":"13.07.2025"}]'
+```
 
-### 🧪 Example Run
+4. **Disable piplines not required**
 
-To check Watzmannhaus (ID 151) and Münchner Haus (ID 150) for two nights:
+   By default the project comes with three different cron schedules:
+   - Hourly `every-hour.yml`
+   - 4-Hours `every-4-hours-yml`
+   - Daily `daily.yml`
 
-`Huts`: 150,151
-
-`Dates`:
-[
-  {"arrivalDate":"11.07.2025","departureDate":"12.07.2025"},
-  {"arrivalDate":"12.07.2025","departureDate":"13.07.2025"}
-]
-
+    Deactivate by → **Actions** → **Select Workflow** → **3 Dots** → **Disable Workflow**
 
 ### Trigger the workflow manually
 Go to Actions → Hut Availability Checker → Run workflow
