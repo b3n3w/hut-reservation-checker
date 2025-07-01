@@ -6,6 +6,7 @@ from time import sleep
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 HUTS = os.environ.get("HUTS", "")  # e.g. "150,603"
 DATES_JSON = os.environ.get("DATES", "[]")  # e.g. '[{"arrivalDate":"11.07.2025","departureDate":"12.07.2025"}]'
+FREE_BEDS = os.environ.get("FREE_BEDS", "3")
 
 BASE_URL = "https://www.hut-reservation.org/api/v1"
 
@@ -55,8 +56,10 @@ def check_availability(hut_id, hut_name, category_id, category_label, arrival, d
 
         free_places = data.get("availabilityPerDayDTOs", [{}])[0].get("freePlaces", 0)
 
-        if free_places > 3:
+        if free_places > int(FREE_BEDS):
             send_discord_notification(hut_name, arrival, departure, category_label, free_places)
+        elif free_places == 0
+            print(f"{arrival}–{departure} | {hut_name} ({category_label}): No beds availble — no notification.")
         else:
             print(f"{arrival}–{departure} | {hut_name} ({category_label}): Only {free_places} free — no notification.")
 

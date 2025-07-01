@@ -1,0 +1,54 @@
+name: Daily - Availability Checker
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Every day at midnight
+  workflow_dispatch:
+    inputs:
+      huts:
+        description: 'Comma-separated hut IDs (e.g. 150,603)'
+        required: true
+        default: '150'
+      free_beds:
+        description: 'Number of free beds required (e.g. 3)'
+        required: true
+        default: '3'
+      dates:
+        description: 'Date ranges JSON string (e.g. [{"arrivalDate":"11.07.2025","departureDate":"12.07.2025"}])'
+        required: true
+        default: '[{"arrivalDate":"11.07.2025","departureDate":"12.07.2025"}]'
+
+env:  # Top-level defaults (used for cron runs)
+  DEFAULT_HUTS: '150'
+  DEFAULT_FREE_BEDS: '3'
+  DEFAULT_DATES: '[{"arrivalDate":"11.07.2025","departureDate":"12.07.2025"}, {"arrivalDate":"12.07.2025","departureDate":"13.07.2025"}]'
+
+jobs:
+  check-availability:
+    runs-on: ubuntu-latest
+
+    container:
+      image: python:3.11-slim
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Set effective environment variables
+        run: |
+          echo "HUTS=${{ github.event.inputs.huts || env.DEFAULT_HUTS }}" >> $GITHUB_ENV
+          echo "FREE_BEDS=${{ github.event.inputs.free_beds || env.DEFAULT_FREE_BEDS }}" >> $GITHUB_ENV
+          {
+            echo 'DATES<<EOF'
+            echo '${{ github.event.inputs.dates || env.DEFAULT_DATES }}'
+            echo 'EOF'
+          } >> $GITHUB_ENV
+         
+
+      - name: Run availability checker
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python check_availability.py
