@@ -28,15 +28,19 @@ def get_hut_info(hut_id):
         print(f"Failed to fetch hut info for {hut_id}: {e}")
         return None
 
-def check_availability(hut_id, hut_name, category_id, category_label, arrival, departure):
+def check_availability(hut_id, hut_name, categories, arrival, departure):
+
     url = f"{BASE_URL}/reservation/checkAvailability/{hut_id}"
+
+    category_ids = [c["categoryID"] for c in categories]
+    peoplePerCategory = [{"categoryId": id, "people": 0} for id in category_ids]
 
     payload = {
         "arrivalDate": arrival,
         "departureDate": departure,
         "numberOfPeople": 0,
         "nextPossibleReservations": False,
-        "peoplePerCategory": [{"categoryId": category_id, "people": 0}],
+        "peoplePerCategory": peoplePerCategory,
         "isWaitingListAccepted": False,
         "reservationPublicId": ""
     }
@@ -54,14 +58,23 @@ def check_availability(hut_id, hut_name, category_id, category_label, arrival, d
         response.raise_for_status()
         data = response.json()
 
-        free_places = data.get("availabilityPerDayDTOs", [{}])[0].get("freePlaces", 0)
+        availabilityPerDayDTOs = data.get("availabilityPerDayDTOs", [{}])
+        categories = availabilityPerDayDTOs[0].get("bedCategoriesData", [])
 
-        if free_places > int(FREE_BEDS):
-            send_discord_notification(hut_name, arrival, departure, category_label, free_places)
-        elif free_places == 0
-            print(f"{arrival}–{departure} | {hut_name} ({category_label}): No beds availble — no notification.")
-        else:
-            print(f"{arrival}–{departure} | {hut_name} ({category_label}): Only {free_places} free — no notification.")
+        for category in categories:
+            label_data = category.get("hutBedCategoryLanguagesData", [])
+            category_label = next((l["label"] for l in label_data if l["language"] == "EN"), "Unknown Category")
+          
+            total_beds = category.get("totalPlaces", 0)
+            free_beds = category.get("totalFreePlaces", 0)
+
+            if free_beds > int(FREE_BEDS):
+                print(category)
+                send_discord_notification(hut_name, arrival, departure, category_label , free_beds)
+            elif free_beds == 0:
+                print(f"{arrival}–{departure} | {hut_name} ({category_label}): No beds availble — no notification.")
+            else:
+                print(f"{arrival}–{departure} | {hut_name} ({category_label}): Only {free_beds} beds availble — no notification.")
 
     except requests.RequestException as e:
         print(f"Error checking availability for {hut_name} ({category_label}) {arrival}–{departure}: {e}")
@@ -78,33 +91,36 @@ def send_discord_notification(hut_name, arrival, departure, category_label, free
         print(f"❌ Failed to send Discord message: {e}")
 
 if __name__ == "__main__":
+
+    if not selected_hut_ids:
+        print("No valid hut IDs provided.")
+
+    if not dates:
+        print("No valid date ranges provided.")
+
+
     for hut_id in selected_hut_ids:
         hut_info = get_hut_info(hut_id)
+
         if not hut_info:
             continue
 
         hut_name = hut_info.get("hutName", f"Hut {hut_id}")
+
         categories = [
             c for c in hut_info.get("hutBedCategories", [])
             if c.get("isVisible", False)
         ]
 
         if not categories:
-            print(f"⚠️ No visible categories found for {hut_name}")
+            print(f"No visible categories found for {hut_name}")
             continue
 
-        for category in categories:
-            category_id = category.get("categoryID")
-            label_data = category.get("hutBedCategoryLanguageData", [])
-            label = next((l["label"] for l in label_data if l["language"] == "EN"), "Unknown Category")
-
-            for date in dates:
-                check_availability(
-                    hut_id=hut_id,
-                    hut_name=hut_name,
-                    category_id=category_id,
-                    category_label=label,
-                    arrival=date["arrivalDate"],
-                    departure=date["departureDate"]
-                )
-                sleep(1)  # Be polite to the API
+        for date in dates:
+            check_availability(
+                hut_id=hut_id,
+                hut_name=hut_name,
+                categories=categories,
+                arrival=date["arrivalDate"],
+                departure=date["departureDate"]
+            )
